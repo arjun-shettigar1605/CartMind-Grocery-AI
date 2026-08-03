@@ -1,0 +1,37 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: cartmind-backend
+  datasource:
+    url: jdbc:postgresql://ep-curly-dawn-azjdmnq9-pooler.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+    username: neondb_owner
+    password: npg_1VgeQjLzSOf7
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+jwt:
+  secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970     
+  expiration-ms: 86400000 # 24 hours
+
+logging:
+  config: classpath:logback.xml
+
+
+langchain4j:
+  open-ai:
+    chat-model:
+      api-key: ${OPENAI_API_KEY}
+      model-name: gpt-4o-mini # Cost-effective for structured extraction
+      response-format: json_object # Enforces JSON output
+      temperature: 0.0 # Deterministic output for parsing
