@@ -54,7 +54,6 @@ public class Note {
     public Long getId() {
         return id;
     }
-
     public void setId(Long id) {
         this.id = id;
     }
@@ -62,7 +61,6 @@ public class Note {
     public User getUser() {
         return user;
     }
-
     public void setUser(User user) {
         this.user = user;
     }
@@ -70,7 +68,6 @@ public class Note {
     public String getTitle() {
         return title;
     }
-
     public void setTitle(String title) {
         this.title = title;
     }
@@ -78,7 +75,6 @@ public class Note {
     public String getRawContent() {
         return rawContent;
     }
-
     public void setRawContent(String rawContent) {
         this.rawContent = rawContent;
     }
@@ -86,7 +82,6 @@ public class Note {
     public boolean isArchived() {
         return isArchived;
     }
-
     public void setArchived(boolean archived) {
         isArchived = archived;
     }

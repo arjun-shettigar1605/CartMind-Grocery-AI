@@ -2,14 +2,19 @@ server:
   port: 8080
   servlet:
     context-path: /api
+    session:
+      cookie:
+        path: / 
+        same-site: lax
+        http-only: true 
 
 spring:
   application:
     name: cartmind-backend
   datasource:
-    url: jdbc:postgresql://ep-curly-dawn-azjdmnq9-pooler.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
-    username: neondb_owner
-    password: npg_1VgeQjLzSOf7
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -19,9 +24,23 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
+  security:
+    oauth2:
+      client:
+        registration:
+          swiggy-mcp:
+            client-id: ${SWIGGY_CLIENT_ID}
+            client-authentication-method: none
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/swiggy"
+            scope: mcp:tools,mcp:resources,mcp:prompts # Requested Swiggy MCP scopes
+        provider:
+          swiggy-mcp:
+            authorization-uri: https://mcp.swiggy.com/auth/authorize
+            token-uri: https://mcp.swiggy.com/auth/token
 
 jwt:
-  secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970     
+  secret: ${JWT_SECRET}
   expiration-ms: 86400000 # 24 hours
 
 logging:
@@ -35,3 +54,7 @@ langchain4j:
       model-name: gpt-4o-mini # Cost-effective for structured extraction
       response-format: json_object # Enforces JSON output
       temperature: 0.0 # Deterministic output for parsing
+
+cartmind:
+  mcp:
+    swiggy-instamart-url: https://mcp.swiggy.com/im # Swiggy Instamart Server

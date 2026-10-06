@@ -1,31 +1,29 @@
 import React from "react";
+// import { useContext } from "react";
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import { ThemeContext } from "../context/ThemeContext";
 import { NotesManager } from "../components/notes/NotesManager";
+import { Navigation } from "../components/layout/Navigation";
+import { LoginPage } from "../pages/LoginPage";
 
 const HomePage = () => (
-  <div className="flex flex-col items-center justify-center min-h-[80vh]">
-    <h1 className="text-3xl font-bold text-primary mb-4">
-      Welcome to CartMind
+  <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-4">
+    <h1 className="text-4xl font-extrabold text-primary dark:text-accent mb-4 tracking-tight">
+      AI-Powered Grocery Planning
     </h1>
-    <p className="mb-8">Your AI-powered grocery planning platform.</p>
+    <p className="max-w-xl text-slate-600 dark:text-slate-400 mb-8 text-base">
+      Convert natural language notes into shopping carts using LangChain4j,
+      OpenAI function calling, and Swiggy Instamart MCP integration.
+    </p>
     <Link
       to="/notes"
-      className="bg-primary text-white px-6 py-2 rounded-lg shadow-md"
+      className="bg-primary hover:bg-opacity-90 text-white font-semibold px-8 py-3 rounded-xl shadow-md transition"
     >
-      Get Started
+      Open Grocery Notes
     </Link>
   </div>
 );
 
-const LoginPage = () => (
-  <div className="p-4 max-w-md mx-auto">
-    <h2 className="text-2xl text-secondary font-bold mb-4">Login</h2>
-    <p className="text-sm text-slate-600 dark:text-slate-400">
-      Authentication flow active. Enter credentials to proceed.
-    </p>
-  </div>
-);
 
 export const AppRouter = () => {
   const { theme, toggleTheme } = React.useContext(ThemeContext);
@@ -34,23 +32,26 @@ export const AppRouter = () => {
 
   return (
     <Router>
-      <div className="min-h-screen bg-lightBg dark:bg-darkBg text-slate-800 dark:text-slate-200 transition-colors duration-300 pb-16 md:pb-0 md:pl-64">
-        <header className="p-4 flex justify-end">
-          <button
-            onClick={toggleTheme}
-            className="p-2 bg-slate-200 dark:bg-slate-700 rounded-full shadow-sm text-xs font-medium"
-          >
-            Toggle to {theme === "light" ? "Dark" : "Light"} Mode
-          </button>
-        </header>
+      <div className="min-h-screen bg-lightBg dark:bg-darkBg text-slate-800 dark:text-slate-200 transition-colors duration-300">
+        <Navigation />
+        <div className="md:pl-64 flex flex-col min-h-screen">
+          <header className="p-4 flex justify-end border-b border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-darkBg/50 backdrop-blur-sm">
+            <button
+              onClick={toggleTheme}
+              className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-medium transition"
+            >
+              Toggle to {theme === "light" ? "Dark" : "Light"} Mode
+            </button>
+          </header>
 
-        <main className="container mx-auto px-4">
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/notes" element={<NotesManager token={token} />} />
-          </Routes>
-        </main>
+          <main className="flex-1 p-4 md:p-8">
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/notes" element={<NotesManager token={token} />} />
+            </Routes>
+          </main>
+        </div>
       </div>
     </Router>
   );

@@ -1,34 +1,66 @@
-import React, { useState, useEffect } from 'react';
-import { noteService } from '../../services/noteService';
+import { useState, useEffect, useCallback } from "react";
+import { noteService } from "../../services/noteService";
+import { cartService } from "../../services/cartService";
 
 export const NotesManager = ({ token }) => {
   const [notes, setNotes] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [title, setTitle] = useState('');
-  const [rawContent, setRawContent] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [title, setTitle] = useState("");
+  const [rawContent, setRawContent] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // Stage 2 State: Track converting note and parsed structured results
   const [convertingNoteId, setConvertingNoteId] = useState(null);
   const [structuredResults, setStructuredResults] = useState({});
 
-  const loadNotes = async () => {
-    const data = await noteService.getNotes(token);
-    setNotes(data);
-  };
-
+  // Stage 3 State: Swiggy MCP Sync
+  const [syncingNoteId, setSyncingNoteId] = useState(null);
+  const [syncStatus, setSyncStatus] = useState({});
+  
+  // Wrapped in useCallback to satisfy ESLint exhaustive-deps rule
+  const loadNotes = useCallback(async () => {
+    if (!token) return; // Prevent 403 Forbidden if user is not logged in
+    try {
+      const data = await noteService.getNotes(token);
+      setNotes(data);
+    } catch (err) {
+      console.error("Frontend log: API failure fetching notes.", err);
+    }
+  }, [token]);
+  
   useEffect(() => {
-    loadNotes();
-  }, []);
+    if (!token) return;
+
+    let cancelled = false;
+
+    const fetchNotes = async () => {
+      try {
+        const data = await noteService.getNotes(token);
+        if (!cancelled) {
+          setNotes(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch notes", err);
+      }
+    };
+    fetchNotes();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadNotes]);
 
   const handleSearch = async (e) => {
     const query = e.target.value;
     setSearchQuery(query);
-    if (query.trim() === '') {
+    if (query.trim() === "") {
       loadNotes();
     } else {
-      const results = await noteService.searchNotes(query, token);
-      setNotes(results);
+      try {
+        const results = await noteService.searchNotes(query, token);
+        setNotes(results);
+      } catch (err) {
+        console.error("Search failed", err);
+      }
     }
   };
 
@@ -39,11 +71,11 @@ export const NotesManager = ({ token }) => {
     setIsSubmitting(true);
     try {
       await noteService.createNote({ title, rawContent }, token);
-      setTitle('');
-      setRawContent('');
+      setTitle("");
+      setRawContent("");
       await loadNotes();
-    } catch (error) {
-      console.error('Frontend log: Failed to create note.', error);
+    } catch (err) {
+      console.error("Frontend log: Failed to create note.", err);
     } finally {
       setIsSubmitting(false);
     }
@@ -53,44 +85,93 @@ export const NotesManager = ({ token }) => {
     try {
       await noteService.deleteNote(id, token);
       await loadNotes();
-    } catch (error) {
-      console.error('Frontend log: Failed to delete note.', error);
+    } catch (err) {
+      console.error("Frontend log: Failed to delete note.", err);
     }
   };
 
-  // Stage 2 Handler: Trigger OpenAI Structured Output conversion
   const handleConvertNote = async (noteId) => {
     setConvertingNoteId(noteId);
     try {
       const structuredData = await noteService.convertNoteToCart(noteId, token);
-      setStructuredResults(prev => ({ ...prev, [noteId]: structuredData }));
-    } catch (error) {
-      console.error('Frontend log: AI conversion error.', error);
-      alert('Failed to convert note to structured grocery list. Check backend LLM configuration.');
+      setStructuredResults((prev) => ({ ...prev, [noteId]: structuredData }));
+    } catch (err) {
+      console.error("Frontend log: AI conversion error.", err);
+      alert(
+        "Failed to convert note to structured grocery list. Check backend LLM configuration.",
+      );
     } finally {
       setConvertingNoteId(null);
     }
   };
 
+  const handleSyncToInstamart = async (noteId) => {
+    const structuredData = structuredResults[noteId];
+    if (!structuredData) return;
+
+    setSyncingNoteId(noteId);
+    setSyncStatus((prev) => ({ ...prev, [noteId]: { loading: true } }));
+
+    try {
+      const responseMessage = await cartService.syncToInstamart(
+        structuredData,
+        token,
+      );
+      setSyncStatus((prev) => ({
+        ...prev,
+        [noteId]: { loading: false, success: true, message: responseMessage },
+      }));
+    } catch (err) {
+      setSyncStatus((prev) => ({
+        ...prev,
+        [noteId]: {
+          loading: false,
+          success: false,
+          message: "Sync failed. Connect your Swiggy account before syncing.",
+        },
+      }));
+      console.error(
+        "Sync failed. Connect your Swiggy account before syncing.",
+        err,
+      );
+    } finally {
+      setSyncingNoteId(null);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-4 space-y-6">
-      {/* Header & Offline Banner */}
+      {/* Header & Swiggy Connection Banner */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-primary dark:text-accent">Grocery Notes</h1>
+          <h1 className="text-2xl font-bold text-primary dark:text-accent">
+            Grocery Notes
+          </h1>
           <p className="text-sm text-slate-600 dark:text-slate-400">
-            Write your grocery needs in natural language for AI parsing.
+            Write items in natural language, convert with AI, and sync to Swiggy
+            Instamart via MCP.
           </p>
         </div>
-        {!navigator.onLine && (
-          <span className="bg-secondary text-white text-xs px-3 py-1 rounded-full">
-            Offline Mode Active
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {!navigator.onLine && (
+            <span className="bg-secondary text-white text-xs px-3 py-1 rounded-full">
+              Offline Mode
+            </span>
+          )}
+          <button
+            onClick={cartService.connectSwiggy}
+            className="px-3 py-1.5 border border-secondary text-secondary dark:text-slate-200 dark:border-slate-600 hover:bg-secondary hover:text-white rounded-lg text-xs font-semibold transition"
+          >
+            Connect Swiggy
+          </button>
+        </div>
       </div>
 
       {/* Note Creation Form */}
-      <form onSubmit={handleCreateNote} className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 space-y-3">
+      <form
+        onSubmit={handleCreateNote}
+        className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-md border border-slate-100 dark:border-slate-700 space-y-3"
+      >
         <input
           type="text"
           placeholder="Note Title (e.g., Weekend BBQ Party)"
@@ -112,7 +193,7 @@ export const NotesManager = ({ token }) => {
           disabled={isSubmitting}
           className="w-full md:w-auto px-6 py-2.5 bg-primary hover:bg-opacity-90 text-white font-medium rounded-lg shadow-sm transition duration-200"
         >
-          {isSubmitting ? 'Saving...' : 'Save Grocery Note'}
+          {isSubmitting ? "Saving..." : "Save Grocery Note"}
         </button>
       </form>
 
@@ -125,8 +206,18 @@ export const NotesManager = ({ token }) => {
           onChange={handleSearch}
           className="w-full p-3 pl-10 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-accent"
         />
-        <svg className="w-5 h-5 absolute left-3 top-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        <svg
+          className="w-5 h-5 absolute left-3 top-3.5 text-slate-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          />
         </svg>
       </div>
 
@@ -139,15 +230,18 @@ export const NotesManager = ({ token }) => {
         ) : (
           notes.map((note) => {
             const structuredData = structuredResults[note.id];
+            const currentSyncStatus = syncStatus[note.id]; // Explicitly declared to fix ESLint 'not defined' error
 
             return (
-              <div 
-                key={note.id} 
+              <div
+                key={note.id}
                 className="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 flex flex-col justify-between space-y-4"
               >
                 <div>
                   <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-semibold text-lg text-primary dark:text-accent">{note.title}</h3>
+                    <h3 className="font-semibold text-lg text-primary dark:text-accent">
+                      {note.title}
+                    </h3>
                     {note.isOffline && (
                       <span className="text-[10px] bg-secondary text-white px-2 py-0.5 rounded">
                         Unsynced
@@ -159,23 +253,50 @@ export const NotesManager = ({ token }) => {
                   </p>
                 </div>
 
-                {/* Stage 2 Render: Structured Output Display[cite: 1, 2] */}
+                {/* Stage 2 Render: Structured Output Display */}
                 {structuredData && (
                   <div className="p-3 bg-lightBg dark:bg-darkBg rounded-lg border border-accent/30 space-y-2">
                     <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-1">
-                      <span className="text-xs font-bold text-accent uppercase">Structured List</span>
+                      <span className="text-xs font-bold text-accent uppercase">
+                        Structured List
+                      </span>
                       <span className="text-xs font-semibold text-primary dark:text-accent">
                         Est. Total: ₹{structuredData.totalEstimatedBudget}
                       </span>
                     </div>
                     <ul className="space-y-1 text-xs">
                       {structuredData.items?.map((item, idx) => (
-                        <li key={idx} className="flex justify-between text-slate-600 dark:text-slate-300">
-                          <span>{item.name} ({item.quantity})</span>
+                        <li
+                          key={idx}
+                          className="flex justify-between text-slate-600 dark:text-slate-300"
+                        >
+                          <span>
+                            {item.name} ({item.quantity})
+                          </span>
                           <span>₹{item.estimatedPrice}</span>
                         </li>
                       ))}
                     </ul>
+
+                    {/* Stage 3 Sync Action */}
+                    <div className="pt-2 border-t border-slate-200 dark:border-slate-700 flex flex-col gap-2">
+                      <button
+                        onClick={() => handleSyncToInstamart(note.id)}
+                        disabled={syncingNoteId === note.id}
+                        className="w-full py-1.5 bg-primary hover:bg-opacity-90 dark:bg-accent text-white text-xs font-semibold rounded-lg transition"
+                      >
+                        {syncingNoteId === note.id
+                          ? "Syncing via Swiggy MCP..."
+                          : "Sync to Instamart Cart"}
+                      </button>
+                      {currentSyncStatus && (
+                        <p
+                          className={`text-[11px] font-medium ${currentSyncStatus.success ? "text-accent" : "text-red-500"}`}
+                        >
+                          {currentSyncStatus.message}
+                        </p>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -188,10 +309,12 @@ export const NotesManager = ({ token }) => {
                       disabled={convertingNoteId === note.id}
                       className="px-3 py-1 bg-accent hover:bg-opacity-90 text-white rounded font-medium transition"
                     >
-                      {convertingNoteId === note.id ? 'Extracting...' : 'AI Convert'}
+                      {convertingNoteId === note.id
+                        ? "Extracting..."
+                        : "AI Convert"}
                     </button>
-                    <button 
-                      onClick={() => handleDelete(note.id)} 
+                    <button
+                      onClick={() => handleDelete(note.id)}
                       className="text-red-500 hover:underline px-1 py-1"
                     >
                       Delete

@@ -1,5 +1,6 @@
 package com.cartmind.config;
 
+
 import com.cartmind.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -42,14 +43,18 @@ public class SecurityConfig {
                 // 2. Disable CSRF strictly using the Spring Security 6 lambda syntax
                 .csrf(AbstractHttpConfigurer::disable)
                 // 3. Enforce stateless session management for JWTs
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // Comment out the stateless policy so Spring can save the PKCE state between the Swiggy redirect and the callback.
+                // .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // 4. Configure Authorization Rules
                 .authorizeHttpRequests(auth -> auth
                         // Allow public access to auth endpoints
-                        .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers("/", "/auth/**", "/login/**", "/oauth2/**").permitAll()
                         // Require authentication for all other endpoints
                         .anyRequest().authenticated())
-                // 5. Add custom JWT filter
+                // 5. Enable OAuth2 Client for Swiggy MCP
+                .oauth2Client(Customizer
+                        .withDefaults())
+                // 6. Add custom JWT filter
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
