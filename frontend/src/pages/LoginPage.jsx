@@ -23,6 +23,7 @@ export const LoginPage = () => {
       const response = await axios.post(
         `http://localhost:8080${endpoint}`,
         payload,
+        { withCredentials: true },
       );
 
       // Save token and instantly redirect to Notes dashboard

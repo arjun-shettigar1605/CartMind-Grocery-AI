@@ -6,7 +6,8 @@ import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
-
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
 @RestController
 public class RootController {
 
@@ -22,20 +23,17 @@ public class RootController {
     }
 
     @GetMapping("/login/oauth2/code/swiggy")
-    public ResponseEntity<String> oauth2Callback(Authentication authentication) {
+    public void oauth2Callback(Authentication authentication,
+            HttpServletResponse response) throws IOException {
         if (authentication == null) {
-            return ResponseEntity.status(401).body("Error: You lost your local JSESSIONID during the redirect.");
+            response.sendRedirect("http://localhost:5173/notes?swiggy=session_lost");
+            return;
         }
-
-        // Explicitly check if the filter successfully grabbed the Swiggy Token
         OAuth2AuthorizedClient client = clientService.loadAuthorizedClient("swiggy-mcp", authentication.getName());
-
         if (client != null && client.getAccessToken() != null) {
-            return ResponseEntity.ok("SUCCESS! The Swiggy token is now securely linked to your session. " +
-                    "You can now test POST /api/cart/sync in Postman!");
+            response.sendRedirect("http://localhost:5173/notes?swiggy=connected");
+        } else {
+            response.sendRedirect("http://localhost:5173/notes?swiggy=failed");
         }
-
-        return ResponseEntity.status(400)
-                .body("Error: Token exchange failed. Ensure you registered a valid Client ID.");
     }
 }

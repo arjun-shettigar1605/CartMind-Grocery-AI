@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { noteService } from "../../services/noteService";
 import { cartService } from "../../services/cartService";
+import { useSearchParams } from "react-router-dom";
 
 export const NotesManager = ({ token }) => {
   const [notes, setNotes] = useState([]);
@@ -16,6 +17,9 @@ export const NotesManager = ({ token }) => {
   // Stage 3 State: Swiggy MCP Sync
   const [syncingNoteId, setSyncingNoteId] = useState(null);
   const [syncStatus, setSyncStatus] = useState({});
+  const [searchParams, setSearchParams] = useSearchParams();
+  const swiggyResult = searchParams.get("swiggy");
+
   
   // Wrapped in useCallback to satisfy ESLint exhaustive-deps rule
   const loadNotes = useCallback(async () => {
@@ -166,6 +170,26 @@ export const NotesManager = ({ token }) => {
           </button>
         </div>
       </div>
+
+      {swiggyResult && (
+        <div
+          className={`p-3 rounded-lg text-sm font-medium ${
+            swiggyResult === "connected"
+              ? "bg-accent/10 text-accent"
+              : "bg-red-50 text-red-600"
+          }`}
+        >
+          {swiggyResult === "connected"
+            ? "Swiggy account connected successfully."
+            : "Swiggy connection failed. Please try again."}
+          <button
+            className="ml-3 underline"
+            onClick={() => setSearchParams({})}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Note Creation Form */}
       <form

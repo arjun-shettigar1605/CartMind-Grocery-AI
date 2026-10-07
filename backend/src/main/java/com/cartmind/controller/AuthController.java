@@ -32,51 +32,29 @@ public class AuthController {
         this.userRepository = userRepository;
     }
 
+    private void establishSession(User user, HttpServletRequest request) {
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(user, null,
+                Collections.emptyList());
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(authentication);
+        SecurityContextHolder.setContext(context);
+        request.getSession(true).setAttribute(
+                HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
+    }
+
     @PostMapping("/register")
-    public ResponseEntity<UserResponse> register(@Valid @RequestBody AuthRequest request) {
+    public ResponseEntity<UserResponse> register(@Valid @RequestBody AuthRequest request, HttpServletRequest httpRequest) {
         UserResponse response = userService.registerUser(request);
+        User user = userRepository.findByEmail(request.getEmail()).orElseThrow();
+        establishSession(user, httpRequest);
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/login")
     public ResponseEntity<UserResponse> login(@Valid @RequestBody AuthRequest request, HttpServletRequest httpRequest) {
         UserResponse response = userService.loginUser(request);
-
-        // Establish the HTTP Session Context for OAuth2 Client linking
         User user = userRepository.findByEmail(request.getEmail()).orElseThrow();
-        UsernamePasswordAuthenticationToken authentication =
-                new UsernamePasswordAuthenticationToken(user, null, Collections.emptyList());
-
-        SecurityContext context = SecurityContextHolder.createEmptyContext();
-        context.setAuthentication(authentication);
-        SecurityContextHolder.setContext(context);
-
-        HttpSession session = httpRequest.getSession(true);
-        session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
-
+        establishSession(user, httpRequest);
         return ResponseEntity.ok(response);
-    }
-
-    @GetMapping("/test-swiggy")
-    public void testSwiggyFlow(HttpServletRequest request, jakarta.servlet.http.HttpServletResponse response)
-            throws java.io.IOException {
-        // 1. Ensure a test user exists
-        User user = userRepository.findByEmail("test@example.com").orElseGet(() -> {
-            User newUser = new User("test@example.com", "password", "Test User");
-            return userRepository.save(newUser);
-        });
-
-        // 2. Establish the session context natively
-        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(user, null,
-                Collections.emptyList());
-        SecurityContext context = SecurityContextHolder.createEmptyContext();
-        context.setAuthentication(authentication);
-        SecurityContextHolder.setContext(context);
-
-        HttpSession session = request.getSession(true);
-        session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
-
-        // 3. Trigger the OAuth2 redirect
-        response.sendRedirect("/api/oauth2/authorization/swiggy-mcp");
     }
 } 
