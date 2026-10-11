@@ -4,6 +4,8 @@ public class GroceryItemDto {
     private String name;
     private String quantity;
     private Double estimatedPrice;
+    private String searchQuery; // e.g. "amul butter"
+    private Integer count; // how many units to buy
 
     public GroceryItemDto() {
     }
@@ -30,5 +32,21 @@ public class GroceryItemDto {
 
     public void setEstimatedPrice(Double estimatedPrice) {
         this.estimatedPrice = estimatedPrice;
+    }
+
+    public String getSearchQuery() {
+        return searchQuery;
+    }
+
+    public void setSearchQuery(String searchQuery) {
+        this.searchQuery = searchQuery;
+    }
+
+    public Integer getCount() {
+        return count;
+    }
+
+    public void setCount(Integer count) {
+        this.count = count;
     }
 }

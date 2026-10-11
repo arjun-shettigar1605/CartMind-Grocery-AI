@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
-const API_URL = 'http://localhost:8080/api/notes';
+const API_URL = `${API_BASE_URL}/notes`;
 const OFFLINE_KEY = 'cartmind_offline_notes';
 
 // Helper to handle offline storage

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { noteService } from "../../services/noteService";
 import { cartService } from "../../services/cartService";
 import { useSearchParams } from "react-router-dom";
+import { CartReview } from "./CartReview";
 
 export const NotesManager = ({ token }) => {
   const [notes, setNotes] = useState([]);
@@ -15,10 +16,10 @@ export const NotesManager = ({ token }) => {
   const [structuredResults, setStructuredResults] = useState({});
 
   // Stage 3 State: Swiggy MCP Sync
-  const [syncingNoteId, setSyncingNoteId] = useState(null);
-  const [syncStatus, setSyncStatus] = useState({});
   const [searchParams, setSearchParams] = useSearchParams();
+  const [swiggyStatus, setSwiggyStatus] = useState("NOT CONNECTED");
   const swiggyResult = searchParams.get("swiggy");
+  const [reviewNoteId, setReviewNoteId] = useState(null);
 
   
   // Wrapped in useCallback to satisfy ESLint exhaustive-deps rule
@@ -52,6 +53,21 @@ export const NotesManager = ({ token }) => {
       cancelled = true;
     };
   }, [loadNotes]);
+
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await cartService.getSwiggyStatus(token);
+        if (!cancelled) setSwiggyStatus(data.status);
+      } catch (err) {
+        console.error("Could not check Swiggy status", err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [token, swiggyResult]); // Re-run when swiggyResult changes to reflect connection status
 
   const handleSearch = async (e) => {
     const query = e.target.value;
@@ -109,40 +125,6 @@ export const NotesManager = ({ token }) => {
     }
   };
 
-  const handleSyncToInstamart = async (noteId) => {
-    const structuredData = structuredResults[noteId];
-    if (!structuredData) return;
-
-    setSyncingNoteId(noteId);
-    setSyncStatus((prev) => ({ ...prev, [noteId]: { loading: true } }));
-
-    try {
-      const responseMessage = await cartService.syncToInstamart(
-        structuredData,
-        token,
-      );
-      setSyncStatus((prev) => ({
-        ...prev,
-        [noteId]: { loading: false, success: true, message: responseMessage },
-      }));
-    } catch (err) {
-      setSyncStatus((prev) => ({
-        ...prev,
-        [noteId]: {
-          loading: false,
-          success: false,
-          message: "Sync failed. Connect your Swiggy account before syncing.",
-        },
-      }));
-      console.error(
-        "Sync failed. Connect your Swiggy account before syncing.",
-        err,
-      );
-    } finally {
-      setSyncingNoteId(null);
-    }
-  };
-
   return (
     <div className="max-w-4xl mx-auto p-4 space-y-6">
       {/* Header & Swiggy Connection Banner */}
@@ -168,6 +150,10 @@ export const NotesManager = ({ token }) => {
           >
             Connect Swiggy
           </button>
+          {swiggyStatus === "CONNECTED" ? "Swiggy Connected ✓ (Reconnect)" : swiggyStatus === "EXPIRED"
+              ? "Session expired, reconnect"
+              : "Connect Swiggy" 
+          }
         </div>
       </div>
 
@@ -254,7 +240,6 @@ export const NotesManager = ({ token }) => {
         ) : (
           notes.map((note) => {
             const structuredData = structuredResults[note.id];
-            const currentSyncStatus = syncStatus[note.id]; // Explicitly declared to fix ESLint 'not defined' error
 
             return (
               <div
@@ -304,21 +289,19 @@ export const NotesManager = ({ token }) => {
 
                     {/* Stage 3 Sync Action */}
                     <div className="pt-2 border-t border-slate-200 dark:border-slate-700 flex flex-col gap-2">
-                      <button
-                        onClick={() => handleSyncToInstamart(note.id)}
-                        disabled={syncingNoteId === note.id}
-                        className="w-full py-1.5 bg-primary hover:bg-opacity-90 dark:bg-accent text-white text-xs font-semibold rounded-lg transition"
-                      >
-                        {syncingNoteId === note.id
-                          ? "Syncing via Swiggy MCP..."
-                          : "Sync to Instamart Cart"}
-                      </button>
-                      {currentSyncStatus && (
-                        <p
-                          className={`text-[11px] font-medium ${currentSyncStatus.success ? "text-accent" : "text-red-500"}`}
+                      {reviewNoteId === note.id ? (
+                        <CartReview
+                          token={token}
+                          groceryList={structuredData}
+                          onClose={() => setReviewNoteId(null)}
+                        />
+                      ) : (
+                        <button
+                          onClick={() => setReviewNoteId(note.id)}
+                          className="w-full py-1.5 bg-primary text-white text-xs font-semibold rounded-lg"
                         >
-                          {currentSyncStatus.message}
-                        </p>
+                          Review & add to Instamart
+                        </button>
                       )}
                     </div>
                   </div>

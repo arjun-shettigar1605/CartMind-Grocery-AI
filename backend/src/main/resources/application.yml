@@ -47,14 +47,19 @@ logging:
   config: classpath:logback.xml
 
 
-langchain4j:
-  open-ai:
-    chat-model:
-      api-key: ${OPENAI_API_KEY}
-      model-name: gpt-4o-mini # Cost-effective for structured extraction
-      response-format: json_object # Enforces JSON output
-      temperature: 0.0 # Deterministic output for parsing
+# langchain4j:
+#   open-ai:
+#     chat-model:
+#       api-key: ${OPENAI_API_KEY}
+#       model-name: gpt-4o-mini # Cost-effective for structured extraction
+#       response-format: json_object # Enforces JSON output
+#       temperature: 0.0 # Deterministic output for parsing
 
 cartmind:
   mcp:
     swiggy-instamart-url: https://mcp.swiggy.com/im # Swiggy Instamart Server
+  frontend-url: ${FRONTEND_URL:http://localhost:5173} # Frontend URL for CORS and redirects
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      model: ${OPENAI_MODEL:gpt-4o-mini}

@@ -1,6 +1,6 @@
 package com.cartmind.service;
 
-import com.cartmind.ai.GroceryExtractionAiService;
+import com.cartmind.ai.OpenAiGroceryExtractionService;
 import com.cartmind.dto.StructuredGroceryListDto;
 import com.cartmind.entity.Note;
 import com.cartmind.repository.NoteRepository;
@@ -13,10 +13,10 @@ public class GroceryConversionService {
 
     private static final Logger log = LoggerFactory.getLogger(GroceryConversionService.class);
 
-    private final GroceryExtractionAiService aiService;
+    private final OpenAiGroceryExtractionService aiService;
     private final NoteRepository noteRepository;
 
-    public GroceryConversionService(GroceryExtractionAiService aiService, NoteRepository noteRepository) {
+    public GroceryConversionService(OpenAiGroceryExtractionService aiService, NoteRepository noteRepository) {
         this.aiService = aiService;
         this.noteRepository = noteRepository;
     }
@@ -30,12 +30,10 @@ public class GroceryConversionService {
         log.info("Calling OpenAI Structured Output for Note ID {}", noteId);
         
         try {
-            StructuredGroceryListDto result = aiService.extractGroceryList(note.getRawContent());
-            log.info("LLM response received successfully for Note ID {}", noteId);
-            return result;
+            return aiService.extractGroceryList(note.getRawContent());
         } catch (Exception e) {
-            log.error("Exception during LLM request for Note ID {}: {}", noteId, e.getMessage());
-            throw new RuntimeException("Failed to convert note to grocery list", e);
+            log.warn("LLM extraction failed, using fallback: {}", e.getMessage());
+            return aiService.extractGroceryList(note.getRawContent());
         }
     }
 }

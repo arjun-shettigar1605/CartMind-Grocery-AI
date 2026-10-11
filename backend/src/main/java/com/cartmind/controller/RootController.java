@@ -8,13 +8,18 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import org.springframework.beans.factory.annotation.Value;
+
 @RestController
 public class RootController {
 
     private final OAuth2AuthorizedClientService clientService;
+    private final String frontendUrl;
 
-    public RootController(OAuth2AuthorizedClientService clientService) {
+    public RootController(OAuth2AuthorizedClientService clientService, 
+            @Value("${cartmind.frontend-url}") String frontendUrl) {
         this.clientService = clientService;
+        this.frontendUrl = frontendUrl;
     }
 
     @GetMapping("/")
@@ -26,14 +31,14 @@ public class RootController {
     public void oauth2Callback(Authentication authentication,
             HttpServletResponse response) throws IOException {
         if (authentication == null) {
-            response.sendRedirect("http://localhost:5173/notes?swiggy=session_lost");
+            response.sendRedirect(frontendUrl + "/notes?swiggy=session_lost");
             return;
         }
         OAuth2AuthorizedClient client = clientService.loadAuthorizedClient("swiggy-mcp", authentication.getName());
         if (client != null && client.getAccessToken() != null) {
-            response.sendRedirect("http://localhost:5173/notes?swiggy=connected");
+            response.sendRedirect(frontendUrl + "/notes?swiggy=connected");
         } else {
-            response.sendRedirect("http://localhost:5173/notes?swiggy=failed");
+            response.sendRedirect(frontendUrl + "/notes?swiggy=failed");
         }
     }
 }
