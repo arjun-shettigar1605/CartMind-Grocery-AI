@@ -17,6 +17,11 @@ import com.cartmind.dto.CartSyncResultDto;
 import com.cartmind.dto.GroceryItemDto;
 import com.cartmind.dto.MatchedItemDto;
 import com.cartmind.service.SwiggyConnectionService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import com.cartmind.ai.GeminiProductResolverService;
+import com.cartmind.exception.AiExtractionException;
+import java.util.function.Function;
 
 @Service
 public class SwiggyMcpService {
@@ -25,10 +30,13 @@ public class SwiggyMcpService {
 
     private final SwiggyMcpClient mcpClient;
     private final SwiggyConnectionService connectionService;
+    private static final Logger log = LoggerFactory.getLogger(SwiggyMcpService.class);
+    private final GeminiProductResolverService resolver;
 
-    public SwiggyMcpService(SwiggyMcpClient mcpClient, SwiggyConnectionService connectionService) {
+    public SwiggyMcpService(SwiggyMcpClient mcpClient, SwiggyConnectionService connectionService, GeminiProductResolverService resolver) {
         this.mcpClient = mcpClient;
         this.connectionService = connectionService;
+        this.resolver = resolver;
     }
 
     public List<AddressDto> getAddresses(String principalName) {
@@ -49,16 +57,29 @@ public class SwiggyMcpService {
             throw new IllegalArgumentException("Grocery list is empty");
 
         var session = mcpClient.openSession(connectionService.requireAccessToken(principalName));
+        List<GroceryItemDto> items = req.items().stream().limit(MAX_ITEMS).toList();
+
+        try {
+            Function<String, JsonNode> searchTool = query -> session.callTool("search_products",
+                    Map.of("addressId", req.addressId(), "query", query));
+            return resolver.resolve(items, searchTool);
+        } catch (AiExtractionException e) {
+            log.warn("AI product resolution failed ({}). Falling back to heuristic matching.", e.getMessage());
+            return previewWithHeuristics(session, req.addressId(), items);
+        }
+    }
+
+    private CartPreviewDto previewWithHeuristics(SwiggyMcpClient.Session session,
+            String addressId, List<GroceryItemDto> items) {
         List<MatchedItemDto> matched = new ArrayList<>();
         List<String> unmatched = new ArrayList<>();
-
-        for (GroceryItemDto item : req.items().stream().limit(MAX_ITEMS).toList()) {
+        for (GroceryItemDto item : items) {
             String query = (item.getSearchQuery() != null && !item.getSearchQuery().isBlank())
                     ? item.getSearchQuery()
                     : item.getName();
             int wanted = (item.getCount() != null && item.getCount() > 0) ? item.getCount() : 1;
 
-            JsonNode data = session.callTool("search_products", Map.of("addressId", req.addressId(), "query", query));
+            JsonNode data = session.callTool("search_products", Map.of("addressId", addressId, "query", query));
             pickBest(item.getName(), wanted, data.path("products"))
                     .ifPresentOrElse(matched::add, () -> unmatched.add(item.getName()));
         }
