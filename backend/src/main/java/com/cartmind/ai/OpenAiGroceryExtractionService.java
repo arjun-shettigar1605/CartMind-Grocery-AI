@@ -10,7 +10,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.json.JsonMapper;
-
+import org.springframework.web.client.RestClientResponseException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import com.cartmind.exception.AiExtractionException;
 
 @Service
 public class OpenAiGroceryExtractionService {
@@ -44,6 +47,7 @@ public class OpenAiGroceryExtractionService {
         private final RestClient restClient;
         private final String model;
         private final JsonMapper mapper = JsonMapper.builder().build();
+        private static final Logger log = LoggerFactory.getLogger(OpenAiGroceryExtractionService.class);
 
         public OpenAiGroceryExtractionService(@Value("${cartmind.ai.openai.api-key}") String apiKey,
                         @Value("${cartmind.ai.openai.model}") String model) {
@@ -55,20 +59,34 @@ public class OpenAiGroceryExtractionService {
         }
 
         public StructuredGroceryListDto extractGroceryList(String note) {
-                Map<String, Object> body = Map.of(
-                                "model", model,
-                                "messages", List.of(
-                                                Map.of("role", "system", "content", SYSTEM_PROMPT),
-                                                Map.of("role", "user", "content", note)),
-                                "response_format", Map.of("type", "json_schema",
-                                                "json_schema", Map.of("name", "grocery_list", "strict", true,
-                                                                "schema", mapper.readTree(SCHEMA_JSON))));
+                try{        
+                        Map<String, Object> body = Map.of(
+                                        "model", model,
+                                        "messages", List.of(
+                                                        Map.of("role", "system", "content", SYSTEM_PROMPT),
+                                                        Map.of("role", "user", "content", note)),
+                                        "response_format", Map.of("type", "json_schema",
+                                                        "json_schema", Map.of("name", "grocery_list", "strict", true,
+                                                                        "schema", mapper.readTree(SCHEMA_JSON))));
 
-                String response = restClient.post().uri("/chat/completions")
-                                .contentType(MediaType.APPLICATION_JSON).body(body).retrieve().body(String.class);
+                        String response = restClient.post().uri("/chat/completions")
+                                        .contentType(MediaType.APPLICATION_JSON).body(body).retrieve().body(String.class);
 
-                String content = mapper.readTree(response).path("choices").path(0).path("message").path("content")
-                                .asText();
-                return mapper.readValue(content, StructuredGroceryListDto.class);
+                        String content = mapper.readTree(response).path("choices").path(0).path("message").path("content")
+                                        .asText();
+                        return mapper.readValue(content, StructuredGroceryListDto.class);
+                } catch (RestClientResponseException e) {
+                        log.error("OpenAI HTTP {}: {}", e.getStatusCode().value(), e.getResponseBodyAsString());
+                        String msg = switch (e.getStatusCode().value()) {
+                                case 401 -> "OpenAI rejected the API key.";
+                                case 429 -> "OpenAI quota or rate limit reached.";
+                                default -> "OpenAI request failed (HTTP " + e.getStatusCode().value() + ").";
+                        };
+                        throw new AiExtractionException(msg, e);
+                } catch (RuntimeException e) {
+                        log.error("Grocery extraction failed", e);
+                        throw new AiExtractionException("Could not process the AI response.", e);
+                }
+
         }
 }

@@ -28,12 +28,6 @@ public class GroceryConversionService {
                 .orElseThrow(() -> new IllegalArgumentException("Note not found or access denied"));
 
         log.info("Calling OpenAI Structured Output for Note ID {}", noteId);
-        
-        try {
-            return aiService.extractGroceryList(note.getRawContent());
-        } catch (Exception e) {
-            log.warn("LLM extraction failed, using fallback: {}", e.getMessage());
-            return aiService.extractGroceryList(note.getRawContent());
-        }
+        return aiService.extractGroceryList(note.getRawContent());
     }
 }

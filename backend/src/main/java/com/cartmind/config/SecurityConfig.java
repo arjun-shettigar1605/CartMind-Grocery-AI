@@ -49,7 +49,7 @@ public class SecurityConfig {
                 // 4. Configure Authorization Rules
                 .authorizeHttpRequests(auth -> auth
                         // Allow public access to auth endpoints
-                        .requestMatchers("/", "/auth/**", "/login/**", "/oauth2/**").permitAll()
+                        .requestMatchers("/", "/auth/**", "/login/**", "/oauth2/**", "/error").permitAll()
                         // Require authentication for all other endpoints
                         .anyRequest().authenticated())
                 // 5. Enable OAuth2 Client for Swiggy MCP

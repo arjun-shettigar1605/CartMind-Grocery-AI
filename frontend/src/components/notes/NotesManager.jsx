@@ -118,7 +118,8 @@ export const NotesManager = ({ token }) => {
     } catch (err) {
       console.error("Frontend log: AI conversion error.", err);
       alert(
-        "Failed to convert note to structured grocery list. Check backend LLM configuration.",
+        err.response?.data?.message ||
+          "Failed to convert note to structured grocery list.",
       );
     } finally {
       setConvertingNoteId(null);
