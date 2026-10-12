@@ -12,8 +12,8 @@ const HomePage = () => (
       AI-Powered Grocery Planning
     </h1>
     <p className="max-w-xl text-slate-600 dark:text-slate-400 mb-8 text-base">
-      Convert natural language notes into shopping carts using LangChain4j,
-      OpenAI function calling, and Swiggy Instamart MCP integration.
+      Convert natural language notes into shopping carts using Gemini structured
+      output, and Swiggy Instamart MCP integration.
     </p>
     <Link
       to="/notes"

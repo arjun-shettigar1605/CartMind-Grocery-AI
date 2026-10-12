@@ -1,6 +1,6 @@
 package com.cartmind.service;
 
-import com.cartmind.ai.OpenAiGroceryExtractionService;
+import com.cartmind.ai.GeminiGroceryExtractionService;
 import com.cartmind.dto.StructuredGroceryListDto;
 import com.cartmind.entity.Note;
 import com.cartmind.repository.NoteRepository;
@@ -13,10 +13,10 @@ public class GroceryConversionService {
 
     private static final Logger log = LoggerFactory.getLogger(GroceryConversionService.class);
 
-    private final OpenAiGroceryExtractionService aiService;
+    private final GeminiGroceryExtractionService aiService;
     private final NoteRepository noteRepository;
 
-    public GroceryConversionService(OpenAiGroceryExtractionService aiService, NoteRepository noteRepository) {
+    public GroceryConversionService(GeminiGroceryExtractionService aiService, NoteRepository noteRepository) {
         this.aiService = aiService;
         this.noteRepository = noteRepository;
     }
@@ -27,7 +27,7 @@ public class GroceryConversionService {
         Note note = noteRepository.findByIdAndUserId(noteId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("Note not found or access denied"));
 
-        log.info("Calling OpenAI Structured Output for Note ID {}", noteId);
+        log.info("Calling Gemini Structured Output for Note ID {}", noteId);
         return aiService.extractGroceryList(note.getRawContent());
     }
 }
