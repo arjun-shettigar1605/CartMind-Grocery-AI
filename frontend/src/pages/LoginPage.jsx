@@ -1,5 +1,9 @@
 import { useState } from "react";
 import axios from "axios";
+import { Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { API_BASE_URL } from "../config";
+
 
 export const LoginPage = () => {
   const [isRegistering, setIsRegistering] = useState(false);
@@ -8,6 +12,10 @@ export const LoginPage = () => {
   const [fullName, setFullName] = useState("");
   const [status, setStatus] = useState({ type: "", message: "" });
   const [isLoading, setIsLoading] = useState(false);
+  const { login, isAuthenticated } = useAuth();
+  const location = useLocation();
+  const redirectTo = location.state?.from || "/notes";
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -15,20 +23,17 @@ export const LoginPage = () => {
     setStatus({ type: "", message: "" });
 
     try {
-      const endpoint = isRegistering ? "/api/auth/register" : "/api/auth/login";
+      const endpoint = isRegistering ? "/auth/register" : "/auth/login";
       const payload = isRegistering
         ? { email, password, fullName }
         : { email, password };
 
-      const response = await axios.post(
-        `http://localhost:8080${endpoint}`,
-        payload,
-        { withCredentials: true },
-      );
+      const response = await axios.post(`${API_BASE_URL}${endpoint}`, payload, {
+        withCredentials: true,
+      });
 
-      // Save token and instantly redirect to Notes dashboard
-      localStorage.setItem("cartmind_token", response.data.token);
-      window.location.href = "/notes";
+      login(response.data); 
+      
     } catch (err) {
       setStatus({
         type: "error",
@@ -40,6 +45,8 @@ export const LoginPage = () => {
       setIsLoading(false);
     }
   };
+
+  if (isAuthenticated) return <Navigate to={redirectTo} replace />;
 
   return (
     <div className="max-w-md mx-auto p-6 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 mt-12">

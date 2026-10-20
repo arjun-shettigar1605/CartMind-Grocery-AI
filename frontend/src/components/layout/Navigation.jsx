@@ -1,12 +1,15 @@
 import { NavLink } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 
-const navItems = [
-  { name: "Home", path: "/" },
-  { name: "Notes", path: "/notes" },
-  { name: "Login", path: "/login" },
-];
 
 export const Navigation = () => {
+  const { isAuthenticated } = useAuth();
+  
+  const navItems = [
+    { name: "Home", path: "/" },
+    { name: "Notes", path: "/notes" },
+    ...(isAuthenticated ? [] : [{ name: "Login", path: "/login" }]),
+  ];
   const activeClass =
     "text-primary dark:text-accent font-semibold border-b-2 md:border-b-0 md:border-l-4 border-accent";
   const inactiveClass =

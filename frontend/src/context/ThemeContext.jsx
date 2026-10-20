@@ -1,6 +1,7 @@
 import { createContext, useState, useEffect } from "react";
 // import axios from 'axios'; // Will be used when backend is ready
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
