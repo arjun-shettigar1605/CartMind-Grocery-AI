@@ -5,6 +5,10 @@ import { ThemeContext } from "../context/ThemeContext";
 import { NotesManager } from "../components/notes/NotesManager";
 import { Navigation } from "../components/layout/Navigation";
 import { LoginPage } from "../pages/LoginPage";
+import { useAuth } from "../context/AuthContext";
+import { ProtectedRoute } from "../components/auth/ProtectedRoute";
+
+
 
 const HomePage = () => (
   <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-4">
@@ -30,12 +34,29 @@ export const AppRouter = () => {
   // Temporary token container until AuthContext state is passed
   const token = localStorage.getItem("cartmind_token") || "";
 
+  const { user, isAuthenticated, logout } = useAuth();
+
+
   return (
     <Router>
       <div className="min-h-screen bg-lightBg dark:bg-darkBg text-slate-800 dark:text-slate-200 transition-colors duration-300">
         <Navigation />
         <div className="md:pl-64 flex flex-col min-h-screen">
           <header className="p-4 flex justify-end border-b border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-darkBg/50 backdrop-blur-sm">
+            {isAuthenticated && (
+              <span className="text-xs text-slate-600 dark:text-slate-400">
+                {user?.fullName}
+              </span>
+            )}
+            {isAuthenticated && (
+              <button
+                onClick={logout}
+                className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-xs font-medium"
+              >
+                Logout
+              </button>
+            )}
+
             <button
               onClick={toggleTheme}
               className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-medium transition"
@@ -48,7 +69,7 @@ export const AppRouter = () => {
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/login" element={<LoginPage />} />
-              <Route path="/notes" element={<NotesManager token={token} />} />
+              <Route path="/notes" element={<ProtectedRoute><NotesManager token={token} /></ProtectedRoute>} />
             </Routes>
           </main>
         </div>
