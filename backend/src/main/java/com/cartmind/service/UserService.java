@@ -61,4 +61,12 @@ public class UserService {
         String token = tokenProvider.generateToken(user.getEmail());
         return new UserResponse(user.getId(), user.getEmail(), user.getFullName(), user.getThemePreference(), token);
     }
+
+    public void updateThemePreference(Long userId, String theme) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        user.setThemePreference(theme);
+        userRepository.save(user);
+        log.info("Database Event: Updated theme preference for user ID {} to {}", userId, theme);
+    }
 }

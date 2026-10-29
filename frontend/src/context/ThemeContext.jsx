@@ -1,36 +1,46 @@
 import { createContext, useState, useEffect } from "react";
-// import axios from 'axios'; // Will be used when backend is ready
+import axios from 'axios'; 
+import { API_BASE_URL } from "../config";
+import { useAuth } from "./AuthContext";
+
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = useState("light");
+  const { token, user, updateUser } = useAuth();
+  const [guestTheme, setGuestTheme] = useState(
+    () => localStorage.getItem("cartmind_theme") || "light",
+  );
+  const theme = user?.themePreference || guestTheme;
+
 
   useEffect(() => {
     const root = window.document.documentElement;
     root.classList.remove("light", "dark");
     root.classList.add(theme);
-
-    // Mock API call to save user preference to the database[cite: 1]
-    const saveThemePreference = async () => {
-      try {
-        console.log(
-          `INFO: Attempting to save ${theme} theme preference to database.`,
-        );
-        // await axios.post('/api/user/preferences', { theme });
-      } catch (error) {
-        console.error("ERROR: Failed to save theme preference.", error);
-      }
-    };
-
-    saveThemePreference();
   }, [theme]);
 
-  const toggleTheme = () => {
-    setTheme((prevTheme) => (prevTheme === "light" ? "dark" : "light"));
-    console.log("INFO: User toggled theme.");
+  const toggleTheme = async () => {
+    const next = theme === "light" ? "dark" : "light";
+    if (!user) {
+      localStorage.setItem("cartmind_theme", next);
+      setGuestTheme(next);
+      return;
+    }
+    updateUser({ themePreference: next }); // update the UI immediately
+    try {
+      await axios.put(
+        `${API_BASE_URL}/user/preferences`,
+        { theme: next },
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+    } catch (error) {
+      console.error("Frontend log: Failed to save theme preference.", error);
+      updateUser({ themePreference: theme }); // roll back if the save failed
+    }
   };
+
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
